@@ -169,7 +169,8 @@ hello-world   latest    d2c94e258dcb   20 months ago   13.3kB
 
 #### 删除本地镜像
 
-- docker rmi [OPTIONS] IMAGE [IMAGE...]
+- docker image rm [OPTIONS] IMAGE [IMAGE...]
+-  docker rm [OPTIONS] CONTAINER [CONTAINER...] ：用于删除多个镜像
 
 ```shell
 #docker image rmi:指定版本号
@@ -790,7 +791,6 @@ exit
 [root@jackycheung ~]# ll catalina.2025-01-07.log 
 -rw-r----- 1 root root 4973 Jan  7 16:25 catalina.2025-01-07.log
 ```
-
 
 
 

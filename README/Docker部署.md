@@ -126,9 +126,9 @@ Server: Docker Engine - Community	#docker管理引擎
 [root@jackycheung ~]# systemctl daemon-reload
 ```
 
-<img src="imgs/image-20220ksnfa54.png" style="zoom:67%;" />
+![](imgs/image-20220ksnfa54.png)
 
-<img src="imgs/image-202201saknfka0795.png" style="zoom:67%;" />
+![](imgs/image-202201saknfka0795.png)
 
 ##### 5.禁用防火墙和SELinux
 
