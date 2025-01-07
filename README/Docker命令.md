@@ -288,6 +288,7 @@ hello-world   latest    d2c94e258dcb   20 months ago   13.3kB
 - -p 宿主机端口:内部端口  #宿主机和容器内部端口映射
 
 ```shell
+#redis
 [root@jackycheung ~]# docker create redis
 f0475670562884e4f78d395acea43d55f3ce293fe83c7f7c8cac7999cd22c33d
 [root@jackycheung ~]# docker ps -a |grep redis
@@ -397,72 +398,163 @@ redis3
 
 #### 进入容器
 
-- docker exec -it 容器id/容器名 bash
+- docker exec 容器id	#在容器外实现与容器交互执行某命令
+
+- docker exec -it 容器id/容器名 bash	#进入容器
+- docker attach 容器id      #类似于ssh命令，可以进入到容器中
+
+> docker attach 退出容器时，如不需要容器再运行，可直接使用exit退出，要容器继续运行，可使用ctrl+p+q
 
 ```shell
-[root@jackycheung ~]# docker exec -it redis2 bash
-root@39bba36740fc:/data# exit
+[root@jackycheung ~]# docker run -d -it --name centos centos
+3574492ef549431e7f216a64b4ab797501acfeefc5476320e863ad3ffcd5b4bf
+[root@jackycheung ~]# docker ps
+CONTAINER ID   IMAGE     COMMAND                  CREATED         STATUS         PORTS                                       NAMES
+3574492ef549   centos    "/bin/bash"              4 seconds ago   Up 3 seconds                                               centos
+39bba36740fc   redis     "docker-entrypoint.s…"   4 hours ago     Up 3 hours     0.0.0.0:6379->6379/tcp, :::6379->6379/tcp   redis2
+#容器外实现与容器交互执行命令
+[root@jackycheung ~]# docker exec centos ps aux
+USER        PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root          1  0.0  0.0  12036  2084 pts/0    Ss+  07:01   0:00 /bin/bash
+root         33  0.0  0.0  44652  1760 ?        Rs   07:16   0:00 ps aux
+#进入容器
+[root@jackycheung ~]# docker exec -it centos bash 
+#查看ip信息
+[root@3574492ef549 /]# ip a s
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+22: eth0@if23: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default 
+    link/ether 02:42:ac:11:00:02 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 172.17.0.2/16 brd 172.17.255.255 scope global eth0
+       valid_lft forever preferred_lft forever
+#查看进程信息
+[root@3574492ef549 /]# ps aux 
+USER        PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root          1  0.0  0.0  12036  2084 pts/0    Ss+  07:01   0:00 /bin/bash
+root         15  0.0  0.0  12036  2176 pts/1    Ss   07:01   0:00 bash
+root         31  0.0  0.0  44652  1784 pts/1    R+   07:02   0:00 ps aux
+#查看用户配置文件
+[root@3574492ef549 /]# cat /etc/passwd
+root:x:0:0:root:/root:/bin/bash
+bin:x:1:1:bin:/bin:/sbin/nologin
+daemon:x:2:2:daemon:/sbin:/sbin/nologin
+adm:x:3:4:adm:/var/adm:/sbin/nologin
+lp:x:4:7:lp:/var/spool/lpd:/sbin/nologin
+sync:x:5:0:sync:/sbin:/bin/sync
+shutdown:x:6:0:shutdown:/sbin:/sbin/shutdown
+halt:x:7:0:halt:/sbin:/sbin/halt
+mail:x:8:12:mail:/var/spool/mail:/sbin/nologin
+operator:x:11:0:operator:/root:/sbin/nologin
+games:x:12:100:games:/usr/games:/sbin/nologin
+ftp:x:14:50:FTP User:/var/ftp:/sbin/nologin
+nobody:x:65534:65534:Kernel Overflow User:/:/sbin/nologin
+dbus:x:81:81:System message bus:/:/sbin/nologin
+systemd-coredump:x:999:997:systemd Core Dumper:/:/sbin/nologin
+systemd-resolve:x:193:193:systemd Resolver:/:/sbin/nologin
+[root@3574492ef549 /]# exit
 exit
 ```
 
-> 默认容器内linux包是最小安装。只提供最基本的命令；exit不会导致容器的停止。
-
-#### 宿主机和容器之间交换文件
-
-- docker cp [OPTIONS] CONTAINER:SRC_PATH DEST_PATH	#容器复制到宿主机
-- docker cp [OPTIONS] SRC_PATH|- CONTAINER:DEST_PATH    #宿主机复制到容器
-
 ```shell
-
+[root@jackycheung ~]# docker attach centos
+[root@3574492ef549 /]# ps aux 
+USER        PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root          1  0.0  0.0  12036  2084 pts/0    Ss   07:01   0:00 /bin/bash
+root         39  0.0  0.0  44652  1776 pts/0    R+   07:18   0:00 ps aux
+#使用exit退出容器停止
+[root@3574492ef549 /]# exit
+exit
+[root@jackycheung ~]# docker ps
+CONTAINER ID   IMAGE     COMMAND                  CREATED       STATUS       PORTS                                       NAMES
+39bba36740fc   redis     "docker-entrypoint.s…"   4 hours ago   Up 3 hours   0.0.0.0:6379->6379/tcp, :::6379->6379/tcp   redis2
+[root@jackycheung ~]# docker ps -a | grep centos
+3574492ef549   centos    "/bin/bash"              18 minutes ago   Exited (0) 20 seconds ago                                               centos
 ```
 
+#### 容器网络
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+<img src="imgs/2017-11-30-docker-network-topology.png" style="zoom:67%;" />
 
 ```shell
-#查看docker镜像
-[root@jackycheung /]# docker images
-REPOSITORY    TAG       IMAGE ID       CREATED         SIZE
-nginx         latest    f876bfc1cc63   5 weeks ago     192MB
-hello-world   latest    d2c94e258dcb   20 months ago   13.3kB
-[root@jackycheung /]# docker run -d nginx
-8759cfb7818322c0b7e1171bcb2433d4cf96e0dbd90298f236317b8e903f2c3c
-#查看所有（运行和停止）的容器
-[root@jackycheung /]# docker ps -a
-CONTAINER ID   IMAGE         COMMAND                  CREATED         STATUS                   PORTS     NAMES
-8759cfb78183   nginx         "/docker-entrypoint.…"   5 seconds ago   Up 4 seconds             80/tcp    unruffled_volhard
-f67bd7cdb3e7   hello-world   "/hello"                 4 hours ago     Exited (0) 4 hours ago             youthful_clarke
-#查看正在运行的容器
-[root@jackycheung /]# docker ps
-CONTAINER ID   IMAGE     COMMAND                  CREATED          STATUS          PORTS     NAMES
-8759cfb78183   nginx     "/docker-entrypoint.…"   16 seconds ago   Up 15 seconds   80/tcp    unruffled_volhard
-#查看容器结构信息
-[root@jackycheung /]# docker inspect 8759
+[root@jackycheung ~]# ip a s
+	......
+#docker0网桥，用于为容器提供连接，转发到主机外的网络
+5: docker0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default 
+    link/ether 02:42:3f:eb:83:1b brd ff:ff:ff:ff:ff:ff
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::42:3fff:feeb:831b/64 scope link 
+       valid_lft forever preferred_lft forever
+       
+#与容器中的虚拟网络设备在同一个命名空间中，用于把容器中的网络连接到主机
+25: veth3fddeed@if24: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master docker0 state UP group default 
+    link/ether 8a:fd:c3:18:11:78 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet6 fe80::88fd:c3ff:fe18:1178/64 scope link 
+       valid_lft forever preferred_lft forever
+       
+#容器中的虚拟网络      
+[root@jackycheung ~]# docker exec centos ip a s
+......
+24: eth0@if25: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default 
+    link/ether 02:42:ac:11:00:02 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 172.17.0.2/16 brd 172.17.255.255 scope global eth0
+       valid_lft forever preferred_lft forever
+```
+
+#### 查看容器中运行的进程信息
+
+- docker top #在Dokcer Host查看容器中运行的进程信息；与docker exec -it  redis ps -ef 不同
+
+```shell
+[root@jackycheung ~]# docker top centos
+UID                 PID                 PPID                C                   STIME               TTY                 TIME                CMD
+root                5174                5153                1                   15:25               pts/0               00:00:00            /bin/bash
+```
+
+| UID  | PID  | PPID | C    | STIME | TTY   | TIME     | CMD       |
+| ---- | ---- | ---- | ---- | ----- | ----- | -------- | --------- |
+| root | 5174 | 5153 | 1    | 15:25 | pts/0 | 00:00:00 | /bin/bash |
+
+```powershell
+输出说明：
+UID 容器中运行的命令用户ID
+PID 容器中运行的命令PID
+PPID 容器中运行的命令父PID，由于PPID是一个容器，可指容器在Docker Host中进程ID
+C 占用CPU百分比
+STIME 启动时间
+TTY 运行所在的终端
+TIME 运行时间
+CMD 执行的命令
+```
+
+#### 查看docker容器镜像本地存储位置
+
+```shell
+[root@jackycheung ~]# ls /var/lib/docker/
+buildkit    engine-id  network   plugins   swarm  volumes
+containers  image      overlay2  runtimes  tmp
+```
+
+> 考虑到docker容器镜像会占用本地存储空间，建议搭建其他存储系统挂载到本地以便解决占用大量本地存储的问题
+
+#### docker inspect
+
+查看Docker对象（容器、镜像、网络或卷）的详细信息。这些信息以JSON格式返回。
+
+- docker inspect [OPTIONS] NAME|ID [NAME|ID...]
+
+```shell
+[root@jackycheung ~]# docker inspect centos
 [
     {
-        "Id": "8759cfb7818322c0b7e1171bcb2433d4cf96e0dbd90298f236317b8e903f2c3c",
-        "Created": "2025-01-06T08:29:19.610806941Z",
-        "Path": "/docker-entrypoint.sh",
-        "Args": [
-            "nginx",
-            "-g",
-            "daemon off;"
-        ],
+        "Id": "3574492ef549431e7f216a64b4ab797501acfeefc5476320e863ad3ffcd5b4bf",
+        "Created": "2025-01-07T07:01:02.965638954Z",
+        "Path": "/bin/bash",
+        "Args": [],
         "State": {
             "Status": "running",
             "Running": true,
@@ -470,18 +562,18 @@ CONTAINER ID   IMAGE     COMMAND                  CREATED          STATUS       
             "Restarting": false,
             "OOMKilled": false,
             "Dead": false,
-            "Pid": 3098,
+            "Pid": 4876,
             "ExitCode": 0,
             "Error": "",
-            "StartedAt": "2025-01-06T08:29:19.935637493Z",
+            "StartedAt": "2025-01-07T07:01:03.33649069Z",
             "FinishedAt": "0001-01-01T00:00:00Z"
         },
-        "Image": "sha256:f876bfc1cc63d905bb9c8ebc5adc98375bb8e22920959719d1a96e8f594868fa",
-        "ResolvConfPath": "/var/lib/docker/containers/8759cfb7818322c0b7e1171bcb2433d4cf96e0dbd90298f236317b8e903f2c3c/resolv.conf",
-        "HostnamePath": "/var/lib/docker/containers/8759cfb7818322c0b7e1171bcb2433d4cf96e0dbd90298f236317b8e903f2c3c/hostname",
-        "HostsPath": "/var/lib/docker/containers/8759cfb7818322c0b7e1171bcb2433d4cf96e0dbd90298f236317b8e903f2c3c/hosts",
-        "LogPath": "/var/lib/docker/containers/8759cfb7818322c0b7e1171bcb2433d4cf96e0dbd90298f236317b8e903f2c3c/8759cfb7818322c0b7e1171bcb2433d4cf96e0dbd90298f236317b8e903f2c3c-json.log",
-        "Name": "/unruffled_volhard",
+        "Image": "sha256:5d0da3dc976460b72c77d94c8a1ad043720b0416bfc16c52c45d4847e53fadb6",
+        "ResolvConfPath": "/var/lib/docker/containers/3574492ef549431e7f216a64b4ab797501acfeefc5476320e863ad3ffcd5b4bf/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/3574492ef549431e7f216a64b4ab797501acfeefc5476320e863ad3ffcd5b4bf/hostname",
+        "HostsPath": "/var/lib/docker/containers/3574492ef549431e7f216a64b4ab797501acfeefc5476320e863ad3ffcd5b4bf/hosts",
+        "LogPath": "/var/lib/docker/containers/3574492ef549431e7f216a64b4ab797501acfeefc5476320e863ad3ffcd5b4bf/3574492ef549431e7f216a64b4ab797501acfeefc5476320e863ad3ffcd5b4bf-json.log",
+        "Name": "/centos",
         "RestartCount": 0,
         "Driver": "overlay2",
         "Platform": "linux",
@@ -506,8 +598,8 @@ CONTAINER ID   IMAGE     COMMAND                  CREATED          STATUS       
             "VolumeDriver": "",
             "VolumesFrom": null,
             "ConsoleSize": [
-                23,
-                75
+                32,
+                93
             ],
             "CapAdd": null,
             "CapDrop": null,
@@ -583,65 +675,54 @@ CONTAINER ID   IMAGE     COMMAND                  CREATED          STATUS       
         },
         "GraphDriver": {
             "Data": {
-                "LowerDir": "/var/lib/docker/overlay2/f2e4b6123da19e09d9a3a942054f4096151aaf2d3cca8ac56892aaa23a1b0456-init/diff:/var/lib/docker/overlay2/9bb05466a0f36efc75bff7af553988cbb50ffacdaa583fea1eb71e74be0f4114/diff:/var/lib/docker/overlay2/a61d59a0c532ffd9a378e8691729d051aaa246a5991d94932fabeb6085e62c40/diff:/var/lib/docker/overlay2/a24178cbc1b84cfa37f190896f473ea877546bdf7ed0e7d63857f255ae73e4f7/diff:/var/lib/docker/overlay2/545e6297b9baec23854ac5285b9296d6569e374bbc0041572e4a05abefc4ce29/diff:/var/lib/docker/overlay2/80aaa894866b580b9e7435c5ea341cee65320a9bee492cddb04edc6f9a0863ff/diff:/var/lib/docker/overlay2/ca0ac03ef4f6a0f8f579e3753e50a4628b606377fd7d13441ab11f14d8b3d4a8/diff:/var/lib/docker/overlay2/6c90847c8ca2808c2bcdebf6bf6ebfe23cf08e7460d63ca558c46645f1383472/diff",
-                "MergedDir": "/var/lib/docker/overlay2/f2e4b6123da19e09d9a3a942054f4096151aaf2d3cca8ac56892aaa23a1b0456/merged",
-                "UpperDir": "/var/lib/docker/overlay2/f2e4b6123da19e09d9a3a942054f4096151aaf2d3cca8ac56892aaa23a1b0456/diff",
-                "WorkDir": "/var/lib/docker/overlay2/f2e4b6123da19e09d9a3a942054f4096151aaf2d3cca8ac56892aaa23a1b0456/work"
+                "LowerDir": "/var/lib/docker/overlay2/28973bca973b07aeaa1ea35f3a70b8440999dc09f6dfe49f57245413af257162-init/diff:/var/lib/docker/overlay2/bf68f4b4a0ed021e6c9452bfc8019cdcc2380ede7da587e4fc31a0f63069083f/diff",
+                "MergedDir": "/var/lib/docker/overlay2/28973bca973b07aeaa1ea35f3a70b8440999dc09f6dfe49f57245413af257162/merged",
+                "UpperDir": "/var/lib/docker/overlay2/28973bca973b07aeaa1ea35f3a70b8440999dc09f6dfe49f57245413af257162/diff",
+                "WorkDir": "/var/lib/docker/overlay2/28973bca973b07aeaa1ea35f3a70b8440999dc09f6dfe49f57245413af257162/work"
             },
             "Name": "overlay2"
         },
         "Mounts": [],
         "Config": {
-            "Hostname": "8759cfb78183",
+            "Hostname": "3574492ef549",
             "Domainname": "",
             "User": "",
             "AttachStdin": false,
             "AttachStdout": false,
             "AttachStderr": false,
-            "ExposedPorts": {
-                "80/tcp": {}
-            },
-            "Tty": false,
-            "OpenStdin": false,
+            "Tty": true,
+            "OpenStdin": true,
             "StdinOnce": false,
             "Env": [
-                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-                "NGINX_VERSION=1.27.3",
-                "NJS_VERSION=0.8.7",
-                "NJS_RELEASE=1~bookworm",
-                "PKG_RELEASE=1~bookworm",
-                "DYNPKG_RELEASE=1~bookworm"
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
             ],
             "Cmd": [
-                "nginx",
-                "-g",
-                "daemon off;"
+                "/bin/bash"
             ],
-            "Image": "nginx",
+            "Image": "centos",
             "Volumes": null,
             "WorkingDir": "",
-            "Entrypoint": [
-                "/docker-entrypoint.sh"
-            ],
+            "Entrypoint": null,
             "OnBuild": null,
             "Labels": {
-                "maintainer": "NGINX Docker Maintainers <docker-maint@nginx.com>"
-            },
-            "StopSignal": "SIGQUIT"
+                "org.label-schema.build-date": "20210915",
+                "org.label-schema.license": "GPLv2",
+                "org.label-schema.name": "CentOS Base Image",
+                "org.label-schema.schema-version": "1.0",
+                "org.label-schema.vendor": "CentOS"
+            }
         },
         "NetworkSettings": {
             "Bridge": "",
-            "SandboxID": "26ec15030238c9ffa57fc5786ed32b49f2e2369c2eb332849d241a9f704797aa",
-            "SandboxKey": "/var/run/docker/netns/26ec15030238",
-            "Ports": {
-                "80/tcp": null
-            },
+            "SandboxID": "1755c2e75541a4f84544ee79a934b8e10f9d62db91fa9aab4407c6819a207600",
+            "SandboxKey": "/var/run/docker/netns/1755c2e75541",
+            "Ports": {},
             "HairpinMode": false,
             "LinkLocalIPv6Address": "",
             "LinkLocalIPv6PrefixLen": 0,
             "SecondaryIPAddresses": null,
             "SecondaryIPv6Addresses": null,
-            "EndpointID": "7c5184eebdae5720cfd148f2bc26f2d36a260bf72ee0161b10850b51d059ddc9",
+            "EndpointID": "f971b24382cdfdc6d0207b58114fd82ada5609fcb7efab5cae6c5fa5ee612aa9",
             "Gateway": "172.17.0.1",
             "GlobalIPv6Address": "",
             "GlobalIPv6PrefixLen": 0,
@@ -655,8 +736,8 @@ CONTAINER ID   IMAGE     COMMAND                  CREATED          STATUS       
                     "Links": null,
                     "Aliases": null,
                     "MacAddress": "02:42:ac:11:00:02",
-                    "NetworkID": "5998d75979273770a0169835e01575f59800cc7d561d67cce07b78fd7be229cd",
-                    "EndpointID": "7c5184eebdae5720cfd148f2bc26f2d36a260bf72ee0161b10850b51d059ddc9",
+                    "NetworkID": "5534b0365d67e7c59dac4b5d11db2ec8d021577938f6f36cd2df518fd826d42f",
+                    "EndpointID": "f971b24382cdfdc6d0207b58114fd82ada5609fcb7efab5cae6c5fa5ee612aa9",
                     "Gateway": "172.17.0.1",
                     "IPAddress": "172.17.0.2",
                     "IPPrefixLen": 16,
@@ -670,69 +751,58 @@ CONTAINER ID   IMAGE     COMMAND                  CREATED          STATUS       
         }
     }
 ]
-#docker0 网桥，用于容器提供桥接，转发到主机之外的网络
-[root@jackycheung /]# ip a s
-........
-5: docker0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default 
-    link/ether 02:42:f3:26:2e:8a brd ff:ff:ff:ff:ff:ff
-    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::42:f3ff:fe26:2e8a/64 scope link 
-       valid_lft forever preferred_lft forever
-#与容器中的虚拟网络设备在同一个命名空间中，用于把容器的网络连接到主机   
-7: veth4150726@if6: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master docker0 state UP group default 
-    link/ether a6:61:6f:8e:c5:21 brd ff:ff:ff:ff:ff:ff link-netnsid 0
-    inet6 fe80::a461:6fff:fe8e:c521/64 scope link 
-       valid_lft forever preferred_lft forever
-#访问nginx服务
-[root@jackycheung /]# curl 172.17.0.2
-<!DOCTYPE html>
-<html>
-<head>
-<title>Welcome to nginx!</title>
-<style>
-html { color-scheme: light dark; }
-body { width: 35em; margin: 0 auto;
-font-family: Tahoma, Verdana, Arial, sans-serif; }
-</style>
-</head>
-<body>
-<h1>Welcome to nginx!</h1>
-<p>If you see this page, the nginx web server is successfully installed and
-working. Further configuration is required.</p>
+```
 
-<p>For online documentation and support please refer to
-<a href="http://nginx.org/">nginx.org</a>.<br/>
-Commercial support is available at
-<a href="http://nginx.com/">nginx.com</a>.</p>
+#### 宿主机和容器之间交换文件
 
-<p><em>Thank you for using nginx.</em></p>
-</body>
-</html>
+- docker cp [OPTIONS] CONTAINER:SRC_PATH DEST_PATH	#容器复制到宿主机
+- docker cp [OPTIONS] SRC_PATH|- CONTAINER:DEST_PATH    #宿主机复制到容器
+
+```shell
+[root@jackycheung ~]# echo 'hello tomcat!' > index.html
+[root@jackycheung ~]# docker run -d --name tomcat -p 8080:8080 tomcat
+[root@jackycheung ~]# docker exec tomcat mkdir -p /usr/local/tomcat/webapps/ROOT/
+#将宿主机index.html复制到容器中
+[root@jackycheung ~]# docker cp index.html tomcat:/usr/local/tomcat/webapps/ROOT/
+                                             Successfully copied 2.05kB to tomcat:/usr/local/tomcat/webapps/ROOT/
+[root@jackycheung ~]# docker exec tomcat cat /usr/local/tomcat/webapps/ROOT/index.html
+hello tomcat!
+[root@jackycheung ~]# docker inspect tomcat | grep "IPAddress"
+            "SecondaryIPAddresses": null,
+            "IPAddress": "172.17.0.4",
+                    "IPAddress": "172.17.0.4",
+[root@jackycheung ~]# curl 172.17.0.4
+curl: (7) Failed connect to 172.17.0.4:80; Connection refused
+[root@jackycheung ~]# curl 172.17.0.4:8080
+hello tomcat!
 ```
 
 ```shell
-[root@jackycheung ~]# docker pull redis
-Using default tag: latest
-latest: Pulling from library/redis
-fd674058ff8f: Already exists 
-e1fbcf8737cd: Pull complete 
-11099e00141f: Pull complete 
-847699972819: Pull complete 
-66d3cac5d3d8: Pull complete 
-45cb8d36c900: Pull complete 
-4f4fb700ef54: Pull complete 
-42bec219b12d: Pull complete 
-Digest: sha256:cd13b924409d740ea8abe6677a7d1accf696898408d330a3d7c8234fa7545775
-Status: Downloaded newer image for redis:latest
-docker.io/library/redis:latest
-[root@jackycheung ~]# docker image ls
-REPOSITORY    TAG       IMAGE ID       CREATED         SIZE
-redis         latest    691a00f92e2c   10 hours ago    117MB
-tomcat        latest    f62f518e5c5c   4 weeks ago     467MB
-nginx         latest    f876bfc1cc63   5 weeks ago     192MB
-mysql         latest    56a8c14e1404   2 months ago    603MB
-httpd         latest    4ce47c750a58   5 months ago    147MB
-hello-world   latest    d2c94e258dcb   20 months ago   13.3kB
+root@7b83bb71d582:/usr/local/tomcat/logs# ls
+catalina.2025-01-07.log  localhost_access_log.2025-01-07.txt
+root@7b83bb71d582:/usr/local/tomcat/logs# pwd
+/usr/local/tomcat/logs
+root@7b83bb71d582:/usr/local/tomcat/logs# exit
+exit
+#将容器tomcat日志复制到宿主机
+[root@jackycheung ~]# docker cp tomcat:/usr/local/tomcat/logs/catalina.2025-01-07.log /root/
+                                               Successfully copied 6.66kB to /root/
+[root@jackycheung ~]# ll catalina.2025-01-07.log 
+-rw-r----- 1 root root 4973 Jan  7 16:25 catalina.2025-01-07.log
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
