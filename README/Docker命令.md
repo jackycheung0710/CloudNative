@@ -231,7 +231,7 @@ IMAGE          CREATED        CREATED BY                                      SI
 [root@jackycheung ~]# 
 ```
 
-#### 保存镜像
+#### 导出镜像
 
 - docker save [OPTIONS] IMAGE [IMAGE...]：save选项将本地仓库的镜像保存当前目录下
 
@@ -266,6 +266,37 @@ Loaded image: hello-world:latest
 [root@jackycheung ~]# docker images |grep hello-world
 hello-world   latest    d2c94e258dcb   20 months ago   13.3kB
 ```
+
+```shell
+[root@docker ~]# docker run -d  -p 8080:8080 --name tomcat01 tomcat
+aa914189fac9fe7b632079b4f45d6bd5aabd865defa9d14b566bda5f93c5fe0c
+[root@docker ~]# docker ps | grep tomcat01
+aa914189fac9   tomcat          "catalina.sh run"   11 seconds ago   Up 9 seconds    0.0.0.0:8080->8080/tcp, :::8080->8080/tcp   tomcat01
+[root@docker ~]# echo "hello docker" > index.html
+[root@docker ~]# docker exec tomcat01 mkdir -p /usr/local/tomcat/webapps/ROOT/
+[root@docker ~]# docker cp index.html tomcat01:/usr/local/tomcat/webapps/ROOT/
+                                             Successfully copied 2.05kB to tomcat01:/usr/local/tomcat/webapps/ROOT/
+[root@docker ~]# docker inspect tomcat01 | grep IPAddress
+            "SecondaryIPAddresses": null,
+            "IPAddress": "172.17.0.3",
+                    "IPAddress": "172.17.0.3",
+[root@docker ~]# curl 172.17.0.3:8080
+hello docker
+[root@docker ~]# docker export aa914189fac9 > tomcat01.tar
+[root@docker ~]# ll tomcat01.tar 
+-rw-r--r-- 1 root root 470899712 Jan 10 05:49 tomcat01.tar
+[root@docker ~]# docker images | grep tomcat
+REPOSITORY                     TAG       IMAGE ID       CREATED          SIZE
+tomcat                         latest    f62f518e5c5c   4 weeks ago      467MB
+
+[root@docker ~]# docker import - tomcat:v2.1 < /root/tomcat01.tar 
+sha256:4cb16a0a0efd4b4f7536d49314237dab8b2564ad17d8ecac11d49b36d2650e7b
+[root@docker ~]# docker images | grep tomcat
+tomcat                         v2.1      4cb16a0a0efd   51 seconds ago   466MB
+tomcat                         latest    f62f518e5c5c   4 weeks ago      467MB
+```
+
+
 
 #### 虚悬镜像（Dangling Image)
 
@@ -796,15 +827,57 @@ exit
 -rw-r----- 1 root root 4973 Jan  7 16:25 catalina.2025-01-07.log
 ```
 
+#### 容器提交
 
+docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
 
+OPTIONS说明：
 
+- **-a :**提交的镜像作者。
+- **-c :**使用 Dockerfile 指令来创建镜像。
+- **-m :**提交时的说明文字。
+- **-p :**提交镜像前暂停容器（默认为 true）
 
+```shell
+[root@docker ~]# docker run -d  -p 8080:8080 --name tomcat01 tomcat
+aa914189fac9fe7b632079b4f45d6bd5aabd865defa9d14b566bda5f93c5fe0c
+[root@docker ~]# docker ps | grep tomcat01
+aa914189fac9   tomcat          "catalina.sh run"   11 seconds ago   Up 9 seconds    0.0.0.0:8080->8080/tcp, :::8080->8080/tcp   tomcat01
+[root@docker ~]# echo "hello docker" > index.html
+[root@docker ~]# docker exec tomcat01 mkdir -p /usr/local/tomcat/webapps/ROOT/
+[root@docker ~]# docker cp index.html tomcat01:/usr/local/tomcat/webapps/ROOT/
+                                             Successfully copied 2.05kB to tomcat01:/usr/local/tomcat/webapps/ROOT/
+[root@docker ~]# docker inspect tomcat01 | grep IPAddress
+            "SecondaryIPAddresses": null,
+            "IPAddress": "172.17.0.3",
+                    "IPAddress": "172.17.0.3",
+[root@docker ~]# curl 172.17.0.3:8080
+hello docker
+[root@docker ~]# docker commit aa914189fac9 my_tomcat:v1.1
+sha256:c073099b8930f61792c73df557eec7d0b99c253f057f57b2d82ca6ae31a77de4
+[root@docker ~]# docker images | grep my_tomcat
+my_tomcat                      v1.1      c073099b8930   15 seconds ago   467MB
 
-
-
-
-
+[root@docker ~]# docker run -d -p 8081:8080 --name mytomcat my_tomcat:v1.1
+eb59795419488f7f7c7b14a67f7eb0ca5b82f4890f1aeaeb022a8bb247b85859
+[root@docker ~]# docker ps | grep mytomcat
+eb5979541948   my_tomcat:v1.1   "catalina.sh run"   30 seconds ago      Up 28 seconds      0.0.0.0:8081->8080/tcp, :::8081->8080/tcp   mytomcat
+[root@docker ~]# docker inspect eb5979541948 | grep IPAddress
+            "SecondaryIPAddresses": null,
+            "IPAddress": "172.17.0.4",
+                    "IPAddress": "172.17.0.4",  
+                    
+[root@docker ~]# docker exec -it mytomcat bash 
+ root@eb5979541948:/usr/local/tomcat# cd webapps/ROOT/
+ root@eb5979541948:/usr/local/tomcat/webapps/ROOT# echo "hello mytomcat" >> index.html
+root@eb5979541948:/usr/local/tomcat/webapps/ROOT# exit
+exit
+[root@docker ~]# curl 127.0.0.1:8080
+hello docker
+[root@docker ~]# curl 127.0.0.1:8081
+hello docker
+hello mytomcat
+```
 
 
 
