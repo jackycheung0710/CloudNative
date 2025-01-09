@@ -237,6 +237,10 @@ IMAGE          CREATED        CREATED BY                                      SI
 
 - docker load [OPTIONS]：load -i选项将打包的镜像文件导入到本地Docker仓库
 
+- docker export [OPTIONS] CONTAINER ：把正在运行的容器导出
+
+- docker import [OPTIONS] file|URL|- [REPOSITORY[:TAG]] ：导入使用docker export导出的容器作为本地容器镜像
+
 ```shell
 [root@jackycheung ~]# docker images
 REPOSITORY    TAG       IMAGE ID       CREATED         SIZE
@@ -791,6 +795,8 @@ exit
 [root@jackycheung ~]# ll catalina.2025-01-07.log 
 -rw-r----- 1 root root 4973 Jan  7 16:25 catalina.2025-01-07.log
 ```
+
+
 
 
 
