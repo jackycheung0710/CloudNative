@@ -333,6 +333,7 @@ tomcat                         latest    f62f518e5c5c   4 weeks ago      467MB
 - --rm  #容器在启动后，执行完成命令或程序后就销毁
 - --name  # 给容器起一个名称
 - -p 宿主机端口:内部端口  #宿主机和容器内部端口映射
+- -P #宿主机随机端口和容器默认端口映射
 
 ```shell
 #redis
@@ -890,9 +891,135 @@ hello docker
 hello mytomcat
 ```
 
+### Docker挂载
 
+​	在Docker中，挂载（mount）是指将宿主机的文件系统或者目录映射到容器内的文件系统中。遮掩做的目的是在宿主机和容器之间共享数据。
 
+![](imgs/553377-20211031122438814-2046080875.png)
 
+#### Volume挂载（Docker Volumes）
+
+- 这是Docker管理的一种数据存储方式。Docker会在宿主机上创建一个特殊的目录来存储容器的数据。非Docker进程不应该修改文件系统这一部分。
+- 该文件系统在Linux上 "/var/lib/docker/volumes/"
+- Volumes更适合持久化数据，因为它们独立于容器的生命周期
+- 可以在多个容器之间共享数据
+- 使用语法：
+  - -v <volume_name>:<container_path>
+  - --mount source=<volume_name>,target=<container_path>
+
+```shell
+#创建名为web_volume数据卷
+[root@docker ~]# docker volume create web_volume
+web_volume
+#创建数据卷之后，默认会存放到目录: /var/lib/docker/volume/数据卷名称/_data目录下
+[root@docker ~]# ll /var/lib/docker/volumes/web_volume/_data/
+total 0
+#查看数据卷的详细信息
+[root@docker ~]# docker volume inspect web_volume
+[
+    {
+        "CreatedAt": "2025-01-10T20:49:16+08:00",
+        "Driver": "local",
+        "Labels": null,
+        "Mountpoint": "/var/lib/docker/volumes/web_volume/_data",
+        "Name": "web_volume",
+        "Options": null,
+        "Scope": "local"
+    }
+]
+#查看所有数据卷
+[root@docker ~]# docker volume ls
+DRIVER    VOLUME NAME
+local     92cf31c19addd408dbe89b91ed897aba7e21f54103375db3559efd75438c8e2c
+local     656527b17369df7e515c65e82cd6ac04ab168e719c21dc51b3f9fc6172e20514
+local     d1de5f296bed3095b07f7748bb9411e7c5e60a045cb7d7cfa3c8cb93c6bcb864
+local     web_volume
+
+[root@docker ~]# docker run -d -it -p 8080:8080 --name webtomcat -v web_volume:/usr/local/tomcat/webapps/ROOT/ tomcat
+de5aa8812cbd46bc1b24ac1302c467c8d1a43de6bd7f2fd42102cc56d9e34af3
+[root@docker ~]# ll /var/lib/docker/volumes/web_volume/_data/
+total 0
+#在数据卷中添加文件
+[root@docker ~]# echo "hello volumes" > /var/lib/docker/volumes/web_volume/_data/index.html
+[root@docker ~]# ls /var/lib/docker/volumes/web_volume/_data/             index.html
+#容器目录下会自动同步已挂载数据卷中的内容
+[root@docker ~]# docker exec webtomcat ls /usr/local/tomcat/webapps/ROOT
+index.html
+#删除数据卷
+[root@docker ~]# docker volume rm web_volume
+Error response from daemon: remove web_volume: volume is in use - [de5aa8812cbd46bc1b24ac1302c467c8d1a43de6bd7f2fd42102cc56d9e34af3]
+[root@docker ~]# docker stop webtomcat
+webtomcat
+[root@docker ~]# docker volume rm web_volume
+Error response from daemon: remove web_volume: volume is in use - [de5aa8812cbd46bc1b24ac1302c467c8d1a43de6bd7f2fd42102cc56d9e34af3]
+[root@docker ~]# docker rm webtomcat
+webtomcat
+#必须要容器被删除后，才能删除数据卷
+[root@docker ~]# docker volume rm web_volume
+web_volume
+#删除无用的数据卷
+[root@docker ~]# docker volume prune
+WARNING! This will remove anonymous local volumes not used by at least one container.
+Are you sure you want to continue? [y/N] y
+Deleted Volumes:
+92cf31c19addd408dbe89b91ed897aba7e21f54103375db3559efd75438c8e2c
+d1de5f296bed3095b07f7748bb9411e7c5e60a045cb7d7cfa3c8cb93c6bcb864
+656527b17369df7e515c65e82cd6ac04ab168e719c21dc51b3f9fc6172e20514
+
+Total reclaimed space: 176B
+[root@docker ~]# docker volume ls
+DRIVER    VOLUME NAME
+```
+
+> 通过镜像创建一个容器。容器一旦销毁，则容器内的数据将一并被删除；容器中的数据不是持久化状态的；数据卷的目的就是数据的持久化，完全独立于容器的生命周期，因此docker不会再容器删除时删除其挂载的数据卷。
+
+#### 绑定挂载（Bind Mounts）
+
+- 可以在任何地方存储在主机系统上。甚至可能是重要的文件或目录。Docker主机或Docker容器上的非Docker进程可以随时对其修改
+
+- 这是将宿主机上的一个具体目录或者文件挂载到容器内的一个目录中
+- 宿主机上的目录或文件在容器启动之前必须存在
+- 更灵活，可以直接访问宿主机上的文件系统
+- 使用语法：
+  - -v <host_path>:<contariner_path>
+  - --mount type=bind,source=<host_path>,target=<container_path>
+
+```shell
+[root@docker /]# mkdir /opt/tomcat-server
+[root@docker /]# docker run -d --name tomcat-server -p 8080:8080 -v /opt/tomcat-server:/usr/local/tomcat/webapps/ROOT:ro tomcat
+f95155c83cfa2729b906aae37a89dfa11e143847161375e3a1efa4dde5dab5be
+[root@docker /]# docker ps
+CONTAINER ID   IMAGE     COMMAND             CREATED         STATUS         PORTS                                       NAMES
+f95155c83cfa   tomcat    "catalina.sh run"   5 seconds ago   Up 4 seconds   0.0.0.0:8080->8080/tcp, :::8080->8080/tcp   tomcat-server
+[root@docker /]# echo "hello tomcat-server" > /opt/tomcat-server/index.html
+[root@docker /]# docker inspect tomcat-server | grep IPAddress
+            "SecondaryIPAddresses": null,
+            "IPAddress": "172.17.0.2",
+                    "IPAddress": "172.17.0.2",
+[root@docker /]# curl 172.17.0.2:8080
+hello tomcat-server
+[root@docker /]# curl 127.0.0.1:8080
+hello tomcat-server
+```
+
+#### 临时挂载（tmpfs mounts）
+
+​	tmpfs挂载是一种将容器的内存作为存储的挂载方式，这种挂载的内容在容器停止后会丢失。tmpfs挂载常用于需要高速存储且不需要持久化的数据。
+
+**使用语法**
+
+-  --tmpfs /tmp:rw,size=100m #将一个tmpfs文件系统挂载到容器内的 /tmp 目录中，挂载为读写模式，并设置大小为100MB。
+
+**使用场景**
+
+- 临时存储：例如存储临时文件、缓存数据等
+- 高速访问：需要高性能读写操作的场景
+- 数据不需要持久化：如日志、临时计算结果等
+
+**注意事项**
+
+- tmpfs挂载会占用容器的内存，所以需要合理分配内存资源
+- topfs挂载的内容不会持久化，当容器停止或重启后，数据会丢失
 
 
 
