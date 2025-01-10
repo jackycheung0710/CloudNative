@@ -296,7 +296,18 @@ tomcat                         v2.1      4cb16a0a0efd   51 seconds ago   466MB
 tomcat                         latest    f62f518e5c5c   4 weeks ago      467MB
 ```
 
+##### 两种方案的区别
 
+- 文件大小不同：export导出的镜像文件体积小于save保存的镜像
+- 是否可以对镜像重命令
+  - docker import 可以为镜像指定新名称
+  - docker load 不能对载入的镜像重命名
+- 是否可以同时将多个镜像打包到一个文件中
+  - docker export 不支持
+  - docker save 支持
+- 是否包含镜像历史
+  - export导出import导入是根据容器拿到镜像，再导入时会丢失镜像所有的历史记录和元数据信息（即仅保存容器当时的快照状态），所以无法进行回滚操作。
+  - 而save保存load加载的镜像，没有丢失镜像的历史，可以回滚到之前的层（layer）
 
 #### 虚悬镜像（Dangling Image)
 
