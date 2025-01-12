@@ -426,6 +426,7 @@ CONTAINER ID   IMAGE     COMMAND                  CREATED             STATUS    
 #### 删除容器
 
 - docker rm 容器id	#删除容器需要停止容器
+- docker rm -f 容器名/id #强制删除正在运行的容器
 
 ```shell
 [root@jackycheung ~]# docker stop redis3
@@ -1020,6 +1021,50 @@ hello tomcat-server
 
 - tmpfs挂载会占用容器的内存，所以需要合理分配内存资源
 - topfs挂载的内容不会持久化，当容器停止或重启后，数据会丢失
+
+#### docker logs
+
+docker logs [OPTIONS] CONTAINER #用于查看Docker容器的日志输出
+
+**选项**
+
+- -f , --floww：实时跟踪日志输出（类似于tail -f)
+- -t , --timestamps：显示每个日志条目的时间戳
+- --since string：显示从给定的时间戳之后的日志
+- --until string ：显示直到给定的时间戳之前的日志
+- -n ， --tail string：仅显示最后N条日志记录，默认为全部日志。可以设置为all以显示所有日志
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
