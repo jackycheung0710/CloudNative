@@ -1022,7 +1022,7 @@ hello tomcat-server
 - tmpfs挂载会占用容器的内存，所以需要合理分配内存资源
 - topfs挂载的内容不会持久化，当容器停止或重启后，数据会丢失
 
-#### docker logs
+### docker logs
 
 docker logs [OPTIONS] CONTAINER #用于查看Docker容器的日志输出
 
@@ -1034,37 +1034,105 @@ docker logs [OPTIONS] CONTAINER #用于查看Docker容器的日志输出
 - --until string ：显示直到给定的时间戳之前的日志
 - -n ， --tail string：仅显示最后N条日志记录，默认为全部日志。可以设置为all以显示所有日志
 
+### docker build
 
+docker build是Docker提供的用于从Dockerfile构建镜像的命令。通过docker build，可用根据指定的Dockerfile和上下文，构建出一个自定义的Docker镜像
 
+#### 命令基本格式
 
+```bash
+docker build [OPTIONS] PATH | URL | -
+```
 
+- PATH：指定Dockerfile所在目录，通常是在当前目录 `.` 或者指定某个目录
+- URL：Dockerfile所在的URL，可用是远程的Git仓库地址或HTTP路径
+- `-` ：从标准输入读取Dockerfile内容
 
+#### 主要选项
 
+##### -t 或 --tag
 
+- 用于构建出镜像指定的标签（名字：标签）。标签格式为name:tag，如果没有指定标签，默认标签是latest
 
+```shell
+docker build -t myimage:1.0 .
+```
 
+##### --no-cache
 
+- 重新构建镜像时不使用缓存。每次构建时都会从头开始执行每一条指令
 
+```shell
+docker build --no-cache -t myimage:1.0 .
+```
 
+##### -f 或 --file
 
+- 指定使用的Dockerfile的路径。如果Dockerfile不在当前目录下，可用使用此选项指定
 
+```shell
+docker build -f /path/to/Dockerfile -t myimage:1.0 .
+```
 
+##### --build-arg
 
+- 设置构建时的环境变量，可用在Dockerfile中通过ARG语句进行引用
 
+```shell
+docker build --build-arg VERSION=1.0 -t myimage:1.0
+```
 
+##### --pull
 
+- 强制从远程仓库拉取最新的基础镜像，而不是使用本地缓存的镜像
 
+```shell
+docker build --pull -t myimage:1.0 .
+```
 
+##### --quiet 或 -q
 
+- 静默模式，仅输出镜像ID
 
+```shell
+docker build -q -t myimage:1.0 .
+```
 
+##### --target
 
+- 指定构建的目标阶段。多阶段构建时，可用指定某一阶段作为构建目标
 
+```shell
+docker build --target build-stage -t myimage:1.0 .
+```
 
+##### --cache-from
 
+- 使用外部镜像作为缓存源，适用于CI/CD环境中加速构建
 
+```shell
+docker build --cache-from=mycache:latest -t myimage:1.0 .	
+```
 
+##### --squash
 
+- 将镜像构建过程中产生的所有中间镜像合并成一个层。通常用于减少最终镜像的大小
+
+```shell
+docker build --squash -t myimage:1.0 .
+```
+
+##### --add-host
+
+- 在构建过程中修改容器的 /etc/hosts文件，添加主机名和IP映射
+
+```shell
+docker build --add-host example.com:127.0.0.1 -t myimage:1.0
+```
+
+#### 总结
+
+`docker build`是一个非常灵活的命令，允许你通过多个选项来定制构建过程。通常的选项包括指定标签、禁用缓存、使用不同的Dockerfile等。
 
 
 
