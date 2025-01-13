@@ -284,29 +284,29 @@ c0bda597dee0   rabbitmq:management   "docker-entrypoint.s…"   About a minute a
 #### 单节点MySQL部署
 
 ```shell
-[root@docker ~]# docker run -p 3306:3306 --name mysql -e MYSQL_ROOT_PASSWORD=root -d mysql:latest
-76d252e38a8df49cdca17f0333afe0fe4e4f8eb66cca0ddacb249a4388d7aae7
+[root@docker ~]# docker run -p 3306:3306 --name mysql \
+   -v /opt/mysql/log:/var/log/mysql \
+   -v /opt/mysql/data:/var/lib/mysql \
+   -v /opt/mysql/mysql.conf.d:/etc/mysql/mysql.conf.d \
+   -e MYSQL_ROOT_PASSWORD=root -d mysql:5.7
+3957d64c22f833299bbf48c3bf5dff255c537dcc0f5beac2b143cfa779cf3189
 [root@docker ~]# docker ps
-CONTAINER ID   IMAGE          COMMAND                  CREATED         STATUS         PORTS                                                  NAMES
-76d252e38a8d   mysql:latest   "docker-entrypoint.s…"   2 seconds ago   Up 2 seconds   0.0.0.0:3306->3306/tcp, :::3306->3306/tcp, 33060/tcp   mysql
-[root@docker ~]# docker exec -it mysql mysql -uroot -proot  
+CONTAINER ID   IMAGE       COMMAND                  CREATED         STATUS         PORTS                                                  NAMES
+3957d64c22f8   mysql:5.7   "docker-entrypoint.s…"   4 seconds ago   Up 3 seconds   0.0.0.0:3306->3306/tcp, :::3306->3306/tcp, 33060/tcp   mysql
+
+[root@docker ~]# docker exec -it mysql mysql -uroot -proot
 mysql: [Warning] Using a password on the command line interface can be insecure.
 Welcome to the MySQL monitor.  Commands end with ; or \g.
-Your MySQL connection id is 9
-Server version: 9.1.0 MySQL Community Server - GPL
+Your MySQL connection id is 2
+Server version: 5.7.44 MySQL Community Server (GPL)
 
-Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
 owners.
 
 Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
-
-mysql> show version;
-ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'version' at line 1
-mysql> show database;
-ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'database' at line 1
 mysql> show databases;
 +--------------------+
 | Database           |
@@ -317,10 +317,311 @@ mysql> show databases;
 | sys                |
 +--------------------+
 4 rows in set (0.00 sec)
+```
+
+#### MySQL主从复制集群
+
+##### MySQL主节点部署
+
+```shell
+[root@docker ~]# docker run -p 3306:3306 --name mysql-master \
+ -v /opt/mysql-master/log:/var/log/mysql \
+ -v /opt/mysql-master/data:/var/lib/mysql \
+ -v /opt/mysql-master/conf:/etc/mysql \
+ -v /opt/mysql-master/mysql.conf.d:/etc/mysql/mysql.conf.d \
+ -v /opt/mysql-master/conf.d:/etc/mysql/conf.d \
+ -e MYSQL_ROOT_PASSWORD=root -d mysql:5.7
+6aa1755bd40166f32dbb300f9512be2a5721dde37292415e3cf4f37dedf5459e
+[root@docker ~]# docker ps
+CONTAINER ID   IMAGE       COMMAND                  CREATED         STATUS         PORTS                                                  NAMES
+6aa1755bd401   mysql:5.7   "docker-entrypoint.s…"   4 seconds ago   Up 2 seconds   0.0.0.0:3306->3306/tcp, :::3306->3306/tcp, 33060/tcp   mysql-master
+```
+
+##### MySQL主节点配置
+
+```shell
+[root@docker ~]# vim /opt/mysql-master/conf/my.cnf
+[root@docker ~]# cat /opt/mysql-master/conf/my.cnf
+
+[client]
+default-character-set=utf8
+
+[mysql]
+default-character-set=utf8
+
+[mysqld]
+init_connect='SET collation_connection = utf8_unicode_ci'
+init_connect='SET NAMES utf8'
+character-set-server=utf8
+collation-server=utf8_unicode_ci
+skip-character-set-client-handshake
+skip-name-resolve
+
+server_id=1
+log-bin=mysql-bin
+read-only=0
+binlog-do-db=jayce
+
+replicate-ignore-db=mysql
+replicate-ignore-db=sys
+replicate-ignore-db=information_schema
+replicate-ignore-db=performance_schema
+```
+
+##### MySQL从节点部署
+
+```shell
+[root@docker ~]# docker run -p 3307:3306 --name mysql-slave \
+ -v /opt/mysql-slave/log:/var/log/mysql \
+ -v /opt/mysql-slave/data:/var/lib/mysql \
+ -v /opt/mysql-slave/conf:/etc/mysql \
+ -v /opt/mysql-slave/mysql.conf.d:/etc/mysql/mysql.conf.d \
+ -v /opt/mysql-slave/conf.d:/etc/mysql/conf.d \
+ -e MYSQL_ROOT_PASSWORD=root -d --link mysql-master:mysql-master mysql:5.7
+27c67a7336b59af6576150dccecb5ff91c22d19071f7b3fdb4cf423afe2741f8
+[root@docker ~]# docker ps
+CONTAINER ID   IMAGE       COMMAND                  CREATED          STATUS          PORTS                                                  NAMES
+27c67a7336b5   mysql:5.7   "docker-entrypoint.s…"   4 seconds ago    Up 1 second     33060/tcp, 0.0.0.0:3307->3306/tcp, :::3307->3306/tcp   mysql-slave
+6aa1755bd401   mysql:5.7   "docker-entrypoint.s…"   15 minutes ago   Up 15 minutes   0.0.0.0:3306->3306/tcp, :::3306->3306/tcp, 33060/tcp   mysql-master
+[root@docker ~]# 
+```
+
+##### MySQL从节点配置
+
+```shell
+[root@docker ~]# vim /opt/mysql-slave/conf/my.cnf
+[root@docker ~]# cat /opt/mysql-slave/conf/my.cnf
+[client]
+default-character-set=utf8
+
+[mysql]
+default-character-set=utf8
+
+[mysqld]
+init_connect='SET collation_connection = utf8_unicode_ci'
+init_connect='SET NAMES utf8'
+character-set-server=utf8
+collation-server=utf8_unicode_ci
+skip-character-set-client-handshake
+skip-name-resolve
+
+server_id=2
+log-bin=mysql-bin
+read-only=1
+binlog-do-db=jayce
+
+replicate-ignore-db=mysql
+replicate-ignore-db=sys
+replicate-ignore-db=information_schema
+replicate-ignore-db=performance_schema
+```
+
+##### master节点配置
+
+```shell
+[root@docker ~]# docker exec -it mysql-master mysql -uroot -proot
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 2
+Server version: 5.7.44 MySQL Community Server (GPL)
+
+Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+# 授权
+mysql> grant replication slave on *.* to 'backup'@'%' identified by '123456';
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+
+mysql> exit
+Bye
+# 重启容器
+[root@docker ~]# docker restart mysql-master
+mysql-master
+[root@docker ~]# docker exec -it mysql-master mysql -uroot -proot
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 2
+Server version: 5.7.44-log MySQL Community Server (GPL)
+
+Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+# 查看状态
+mysql> show master status\G
+*************************** 1. row ***************************
+             File: mysql-bin.000001
+         Position: 154
+     Binlog_Do_DB: jayce
+ Binlog_Ignore_DB: 
+Executed_Gtid_Set: 
+1 row in set (0.00 sec)
+```
+
+##### slave节点配置
+
+```shll
+[root@docker ~]# docker exec -it mysql-slave mysql -uroot -proot
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 2
+Server version: 5.7.44-log MySQL Community Server (GPL)
+
+Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> CHANGE MASTER TO 
+       MASTER_HOST='mysql-master', 
+       MASTER_USER='backup', 
+       MASTER_PASSWORD='123456', 
+       MASTER_LOG_FILE='mysql-bin.000001', 
+       MASTER_LOG_POS=154, 
+       MASTER_PORT=3306;
+Query OK, 0 rows affected, 2 warnings (0.06 sec)
+
+mysql> start slave
+    -> ;
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> show slave status\G
+*************************** 1. row ***************************
+               Slave_IO_State: Waiting for master to send event
+                  Master_Host: mysql-master
+                  Master_User: backup
+                  Master_Port: 3306
+                Connect_Retry: 60
+              Master_Log_File: mysql-bin.000001
+          Read_Master_Log_Pos: 154
+               Relay_Log_File: 27c67a7336b5-relay-bin.000002
+                Relay_Log_Pos: 320
+        Relay_Master_Log_File: mysql-bin.000001
+             Slave_IO_Running: Yes
+            Slave_SQL_Running: Yes
+              Replicate_Do_DB: 
+          Replicate_Ignore_DB: mysql,sys,information_schema,performance_schema
+           Replicate_Do_Table: 
+       Replicate_Ignore_Table: 
+      Replicate_Wild_Do_Table: 
+  Replicate_Wild_Ignore_Table: 
+                   Last_Errno: 0
+                   Last_Error: 
+                 Skip_Counter: 0
+          Exec_Master_Log_Pos: 154
+              Relay_Log_Space: 534
+              Until_Condition: None
+               Until_Log_File: 
+                Until_Log_Pos: 0
+           Master_SSL_Allowed: No
+           Master_SSL_CA_File: 
+           Master_SSL_CA_Path: 
+              Master_SSL_Cert: 
+            Master_SSL_Cipher: 
+               Master_SSL_Key: 
+        Seconds_Behind_Master: 0
+Master_SSL_Verify_Server_Cert: No
+                Last_IO_Errno: 0
+                Last_IO_Error: 
+               Last_SQL_Errno: 0
+               Last_SQL_Error: 
+  Replicate_Ignore_Server_Ids: 
+             Master_Server_Id: 1
+                  Master_UUID: 521a93e9-d1ec-11ef-80c6-0242ac110002
+             Master_Info_File: /var/lib/mysql/master.info
+                    SQL_Delay: 0
+          SQL_Remaining_Delay: NULL
+      Slave_SQL_Running_State: Slave has read all relay log; waiting for more updates
+           Master_Retry_Count: 86400
+                  Master_Bind: 
+      Last_IO_Error_Timestamp: 
+     Last_SQL_Error_Timestamp: 
+               Master_SSL_Crl: 
+           Master_SSL_Crlpath: 
+           Retrieved_Gtid_Set: 
+            Executed_Gtid_Set: 
+                Auto_Position: 0
+         Replicate_Rewrite_DB: 
+                 Channel_Name: 
+           Master_TLS_Version: 
+1 row in set (0.00 sec)
+```
+
+##### 验证MySQL集群可用性
+
+```shell
+# MySQL Master节点创建jayce数据库
+[root@docker ~]# docker exec -it mysql-master mysql -uroot -proot     
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 4
+Server version: 5.7.44-log MySQL Community Server (GPL)
+
+Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> create database jayce;
+Query OK, 1 row affected (0.01 sec)
+
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| jayce              |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+5 rows in set (0.00 sec)
+
+mysql> exit
+Bye
+# 查看MySQL Slave节点同步情况
+[root@docker ~]# docker exec -it mysql-slave mysql -uroot -proot 
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 5
+Server version: 5.7.44-log MySQL Community Server (GPL)
+
+Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| jayce              |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+5 rows in set (0.00 sec)
 
 ```
 
-### 可视化界面-[Portainer](https://documentation.portainer.io/)
+### 可视化界面[Portainer](https://documentation.portainer.io/)
 
 Portainer社区版2.0拥有超过50万的普通用户，是功能强大的开源工具集，可让您轻松地在Docker， Swarm，Kubernetes和Azure ACI中构建和管理容器。 Portainer的工作原理是在易于使用的GUI后面隐藏 使管理容器变得困难的复杂性。通过消除用户使用CLI，编写YAML或理解清单的需求，Portainer使部署 应用程序和解决问题变得如此简单，任何人都可以做到。 Portainer开发团队在这里为您的Docker之旅提 供帮助;
 
