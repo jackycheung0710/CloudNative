@@ -1,3 +1,7 @@
+### Docker生命周期
+
+![](imgs/lifecycle-of-docker-container-20200809005844880.png)
+
 ### Docker Image
 
 - Docker镜像是只读的容器模板，是Docker容器基础
