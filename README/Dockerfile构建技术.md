@@ -240,7 +240,7 @@ WORKDIR /root
 
 <img src="imgs/docker-build-workflow.png" style="zoom:67%;" />
 
-<img src="imgs/docker-image-build.gif" style="zoom:70%;" />
+
 
 #### Dockerfile生成Nginx容器镜像
 
@@ -407,6 +407,8 @@ e7a317e117c7   centos-nginx:v1    "/usr/sbin/nginx -g …"   2 hours ago     Up 
 [root@docker tomcat-image]# curl 127.0.0.1:8081
 Hello tomcat
 ```
+
+<img src="imgs/docker-image-build.gif" style="zoom:70%;" />
 
 ### Dockerfile生成容器镜像优化
 
