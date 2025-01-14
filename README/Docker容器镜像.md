@@ -2,9 +2,13 @@
 
 ![](imgs/lifecycle-of-docker-container-20200809005844880.png)
 
-### Docker Image
+### Docker 镜像与容器
+
+<img src="imgs/image-13.png" style="zoom:80%;" />
 
 - Docker镜像是只读的容器模板，是Docker容器基础
+- Docker容器时Docker镜像的运行实例
+- 镜像可用独立于容器而存在，而容器则需要镜像才能运行。我们可用从同一个镜像创建多个容器，每个容器都有自己独特的数据和状态
 - 为Docker容器提供了静态文件系统运行环境（rootfs）
 - 是容器的静止状态
 - 容器时镜像的运行状态
