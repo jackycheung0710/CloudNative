@@ -223,7 +223,7 @@ WORKDIR指令设置工作目录，类似于cd命令。不建议使用 RUN cd /ro
 WORKDIR /root
 ```
 
-#### Dockerfile基本构成
+### Dockerfile基本构成
 
 - 基础镜像信息
 - 维护者信息
@@ -240,15 +240,93 @@ WORKDIR /root
 
 <img src="imgs/docker-build-workflow.png" style="zoom:67%;" />
 
+<img src="imgs/docker-image-build.gif" style="zoom:70%;" />
+
 #### Dockerfile生成Nginx容器镜像
 
 ```shell
+#创建所需的文件和和文件夹
 [root@docker ~]# mkdir nginx-image && cd nginx-image
 [root@docker nginx-image]# touch .dockerignore
 [root@docker nginx-image]# mkdir files
 [root@docker nginx-image]# cd files/
 [root@docker files]# vim index.html
-[root@docker files]# cat index.html 
+#编写Dockerfile文件
+[root@docker nginx-image]# vim Dockerfile
+[root@docker nginx-image]# cat Dockerfile
+#选择基础镜像
+FROM centos:7
+LABEL maintainer="canvs@qq.com"
+RUN rm -rf /etc/yum.repos.d/*
+# 配置阿里云源
+RUN curl -o /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+RUN yum -y install epel-release
+# 安装 nginx
+RUN yum -y install nginx
+
+# 复制本地文件到镜像目录
+COPY files/default /etc/nginx/sites-available/default
+# 添加本地文件到镜像目录
+ADD files/index.html /usr/share/nginx/html/
+#暴露80端口
+EXPOSE 80
+CMD ["/usr/sbin/nginx", "-g", "daemon off;"]
+#查看文件目录结构
+[root@docker nginx-image]# ll -R /root/nginx-image
+/root/nginx-image:
+total 4
+-rw-r--r-- 1 root root 431 Jan 14 18:25 Dockerfile
+drwxr-xr-x 2 root root  39 Jan 13 21:20 files
+
+/root/nginx-image/files:
+total 8
+-rw-r--r-- 1 root root 223 Jan 13 21:08 default
+-rw-r--r-- 1 root root 246 Jan 13 21:07 index.html
+
+[root@docker nginx-image]# docker build --no-cache -t centos-nginx:v1 .
+[+] Building 127.1s (12/12) FINISHED                                        docker:default
+ => [internal] load build definition from Dockerfile                                  0.0s
+ => => transferring dockerfile: 470B                                                  0.0s
+ => [internal] load metadata for docker.io/library/centos:7                           0.0s
+ => [internal] load .dockerignore                                                     0.0s
+ => => transferring context: 34B                                                      0.0s
+ => CACHED [1/7] FROM docker.io/library/centos:7                                      0.0s
+ => [internal] load build context                                                     0.0s
+ => => transferring context: 96B                                                      0.0s
+ => [2/7] RUN rm -rf /etc/yum.repos.d/*                                               0.3s
+ => [3/7] RUN curl -o /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/re  2.1s
+ => [4/7] RUN yum -y install epel-release                                            70.0s 
+ => [5/7] RUN yum -y install nginx                                                   52.8s 
+ => [6/7] COPY files/default /etc/nginx/sites-available/default                       0.0s 
+ => [7/7] ADD files/index.html /usr/share/nginx/html/                                 0.0s 
+ => exporting to image                                                                1.8s 
+ => => exporting layers                                                               1.7s 
+ => => writing image sha256:bac07868650a5f29303b0e91149a47acf7213bb847efe502ce8ad4d7  0.0s 
+ => => naming to docker.io/library/centos-nginx:v1   
+ 
+[root@docker nginx-image]# docker images
+REPOSITORY               TAG          IMAGE ID       CREATED         SIZE
+centos-nginx             v1           bac07868650a   2 minutes ago   756MB
+```
+
+##### CMD ["/usr/sbin/nginx", "-g", "daemon off;"] 解释
+
+CMD指令是Dockerfile中定义容器默认启动命令的方式。
+
+- /usr/sbin/nginx ： 是 nginx的执行文件路径；表示启动nginx服务
+- -g 'daemon off;'： 这是nginx启动时的一个配置选项，用来控制nginx是否以守护进程（daemon）模式来运行
+  - -g ：这个选项允许传递全局指令，通过用于命令行启动时传递配置项
+  - daemon off；：让nginx以前台进程运行，而不是后台运行
+- 为什么使用 daemon off ：在Docker容器中，容器的生命周期通常是由其主进程决定，容器会一直运行，直到主进程退出。默认情况下，nginx会以后台进程运行，这会导致容器启动后立即退出，因为没有主进程在前台运行，通过指定 `daemon off;` ，nginx会在前台运行，容器就会一直保持运行状态，直到停止容器
+
+```shell
+# 测试Docker镜像
+[root@docker nginx-image]# docker run -d -p 8080:80 --name webserver centos-nginx:v1
+e7a317e117c7b650b2a9a5f1fad647489b9be4af6264f3de4485d8d08731ca36
+[root@docker nginx-image]# docker ps
+CONTAINER ID   IMAGE             COMMAND                  CREATED         STATUS         PORTS                                   NAMES
+e7a317e117c7   centos-nginx:v1   "/usr/sbin/nginx -g …"   4 seconds ago   Up 3 seconds   0.0.0.0:8080->80/tcp, :::8080->80/tcp   webserver
+[root@docker nginx-image]# curl 127.0.0.1:8080
 <html>
   <head>
     <title>Dockerfile</title>
@@ -261,28 +339,227 @@ WORKDIR /root
     </div>
   </body>
 </html>
-[root@docker files]# vi default
-[root@docker files]# cat default 
-server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    
-    root /usr/share/nginx/html;
-    index index.html index.htm;
-
-    server_name _;
-    location / {
-        try_files $uri $uri/ =404;
-    }
-}
-[root@docker nginx-image]# cat Dockerfile 
-FROM centos:centos7
-LABEL maintainer="canvs@qq.com"
-RUN curl -o /etc/yum.repos.d/epel.repo http://mirrors.aliyun.com/repo/epel-7.repo
-RUN yum -y install nginx
-COPY files/default /etc/nginx/sites-available/default
-ADD files/index.html /usr/share/nginx/html/
-EXPOSE 80
-CMD ["/usr/sbin/nginx", "-g", "daemon off;"]
 ```
+
+#### Dockerfile生成Tomcat
+
+```shell
+[root@docker ~]# mkdir tomcat-image
+[root@docker ~]# cd tomcat-image
+[root@docker tomcat-image]# ls
+Dockerfile  index.html  jdk-8u202
+[root@docker tomcat-image]# vim Dockerfile 
+[root@docker tomcat-image]# cat Dockerfile 
+FROM centos:7
+MAINTAINER "canvs@qq.com"
+ENV VERSION=8.5.75
+ENV JAVA_HOME=/usr/local/jdk-8u202
+ENV TOMCAT_HOME=/usr/local/tomcat
+RUN curl -O https://archive.apache.org/dist/tomcat/tomcat-8/v${VERSION}/bin/apache-tomcat-${VERSION}.tar.gz
+RUN tar -zxf apache-tomcat-${VERSION}.tar.gz -C /usr/local
+RUN mv /usr/local/apache-tomcat-${VERSION} /usr/local/tomcat && rm -rf apache-tomcat-${VERSION}.tar.gz /usr/local/tomcat/webapps/*
+RUN mkdir /usr/local/tomcat/webapps/ROOT
+COPY ./index.html /usr/local/tomcat/webapps/ROOT/
+ADD ./jdk-8u202 /usr/local/jdk-8u202
+RUN echo "export TOMCAT_HOME=/usr/local/tomcat" >> /etc/profile
+RUN echo "export JAVA_HOME=/usr/local/jdk-8u202" >> /etc/profile
+RUN echo "export PATH=${TOMCAT_HOME}/bin:${JAVA_HOME}/bin:$PATH" >> /etc/profile
+RUN echo "export CLASSPATH=.:${JAVA_HOME}/lib/dt.jar:${JAVA_HOME}/lib/tools.jar" >> /etc/profile
+RUN source /etc/profile
+EXPOSE 8080
+CMD ["/usr/local/tomcat/bin/catalina.sh","run"]
+
+[root@docker tomcat-image]# docker build -t centos-tomcat:v3 .
+[+] Building 8.0s (17/17) FINISHED                                                                                                                                         docker:default
+ => [internal] load build definition from Dockerfile                                                                                                                                 0.0s
+ => => transferring dockerfile: 984B                                                                                                                                                 0.0s
+ => [internal] load metadata for docker.io/library/centos:7                                                                                                                          0.0s
+ => [internal] load .dockerignore                                                                                                                                                    0.0s
+ => => transferring context: 2B                                                                                                                                                      0.0s
+ => [ 1/12] FROM docker.io/library/centos:7                                                                                                                                          0.0s
+ => [internal] load build context                                                                                                                                                    0.1s
+ => => transferring context: 167.60kB                                                                                                                                                0.1s
+ => CACHED [ 2/12] RUN curl -O https://archive.apache.org/dist/tomcat/tomcat-8/v8.5.75/bin/apache-tomcat-8.5.75.tar.gz                                                               0.0s
+ => CACHED [ 3/12] RUN tar -zxf apache-tomcat-8.5.75.tar.gz -C /usr/local                                                                                                            0.0s
+ => CACHED [ 4/12] RUN mv /usr/local/apache-tomcat-8.5.75 /usr/local/tomcat && rm -rf apache-tomcat-8.5.75.tar.gz /usr/local/tomcat/webapps/*                                        0.0s
+ => CACHED [ 5/12] RUN mkdir /usr/local/tomcat/webapps/ROOT                                                                                                                          0.0s
+ => CACHED [ 6/12] COPY ./index.html /usr/local/tomcat/webapps/ROOT/                                                                                                                 0.0s
+ => [ 7/12] ADD ./jdk-8u202 /usr/local/jdk-8u202                                                                                                                                     3.3s
+ => [ 8/12] RUN echo "export TOMCAT_HOME=/usr/local/tomcat" >> /etc/profile                                                                                                          0.5s
+ => [ 9/12] RUN echo "export JAVA_HOME=/usr/local/jdk-8u202" >> /etc/profile                                                                                                         0.4s
+ => [10/12] RUN echo "export PATH=/usr/local/tomcat/bin:/usr/local/jdk-8u202/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" >> /etc/profile                       0.3s
+ => [11/12] RUN echo "export CLASSPATH=.:/usr/local/jdk-8u202/lib/dt.jar:/usr/local/jdk-8u202/lib/tools.jar" >> /etc/profile                                                         0.3s
+ => [12/12] RUN source /etc/profile                                                                                                                                                  0.3s
+ => exporting to image                                                                                                                                                               2.7s
+ => => exporting layers                                                                                                                                                              2.6s
+ => => writing image sha256:2680980f32fdfca899586ba80d9f19c7fde5d1dd6db205fbec75f25c8fc75b87                                                                                         0.0s
+ => => naming to docker.io/library/centos-tomcat:v3                
+[root@docker tomcat-image]# docker images
+REPOSITORY               TAG          IMAGE ID       CREATED         SIZE
+centos-tomcat            v3           2680980f32fd   2 minutes ago   642MB
+
+[root@docker tomcat-image]# docker run -d -p 8081:8080  centos-tomcat:v3      
+cd746e6e30cf5780fbb4cbcf9ad3164995a0da290eb1e1428c80d6e159f2ab2a
+[root@docker tomcat-image]# docker ps
+CONTAINER ID   IMAGE              COMMAND                  CREATED         STATUS         PORTS                                       NAMES
+cd746e6e30cf   centos-tomcat:v3   "/usr/local/tomcat/b…"   6 seconds ago   Up 5 seconds   0.0.0.0:8081->8080/tcp, :::8081->8080/tcp   gallant_mccarthy
+e7a317e117c7   centos-nginx:v1    "/usr/sbin/nginx -g …"   2 hours ago     Up 2 hours     0.0.0.0:8080->80/tcp, :::8080->80/tcp       webserver
+[root@docker tomcat-image]# curl 127.0.0.1:8081
+Hello tomcat
+```
+
+### Dockerfile生成容器镜像优化
+
+优化 `Dockerfile` 生成容器镜像的过程，主要是为了缩短构建时间、减小镜像大小、提高镜像的可维护性和可移植性。
+
+#### 较少镜像分层
+
+每个RUN、COPY、ADD等指令都会创建一个新的镜像层。过多的镜像层会增加镜像的大小，并且增加Docker构建镜像的时间
+
+```dockerfile
+# 不优化
+RUN yum install -y nginx
+RUN yum install -y curl
+
+# 优化后
+RUN yum install -y nginx curl
+```
+
+#### 合并RUN指令
+
+每次RUN指令都会创建一个新的层，应该将多个相关的命令合并在一个RUN指令中执行
+
+```dockerfile
+# 不优化
+RUN yum remove wget
+RUN yum install -y nginx
+
+# 优化后
+RUN yum remove wget && yum install -y nginx
+```
+
+#### 使用更小的基础镜像
+
+选择更小的基础镜像可用显著减少镜像大小。如：`alpine` 镜像代替 `ubuntu` 或 `centos` 。alpine镜像通常不到5MB
+
+```shell
+# 不优化
+FROM centos:7
+# 优化后
+FROM alpine:3.14
+```
+
+#### 减少不必要的文件
+
+在构建镜像时，常常会把不必要的文件也包含 进镜像，比如源码、构建文件等。使用 `.dockerignore` 文件来排除这些不必要的文件；这样Docker就会忽略掉这些文件，避免它们被添加到镜像中。
+
+```tex
+node_modules/
+*.log
+*.git
+```
+
+#### 使用多阶段构建
+
+多阶段构建允许你在构建镜像时使用不同的基础镜像，只有在最终阶段才将需要的文件复制到最终镜像中。这样可用大幅度减小镜像的大小，因为构建工具和中间产物指挥出现在构建阶段，而不会出现在最终镜像中。
+
+```dockerfile
+# 第一阶段：构建阶段
+FROM golang:1.16 AS build
+
+WORKDIR /src
+COPY . .
+RUN go build -o app
+
+# 第二阶段：生产镜像
+FROM alpine:3.14
+
+WORKDIR /app
+COPY --from=build /src/app .
+
+CMD ["./app"]
+```
+
+#### 缓存优化
+
+Docker在构建镜像时会缓存每个步骤。如果你频繁地修改Dockerfile中的某个步骤，可用考虑将频繁更改的部分放在Dockerfile的后面，这样可用减少构建过程中缓存失效的情况，节约时间。
+
+```
+
+```
+
+#### 删除临时文件和缓存
+
+在镜像构建过程中，很多临时文件和包缓存是不需要保留的。使用 `rm -rf` 删除它们，减小镜像体积
+
+```dockerfile
+RUN yum install -y nginx mysql && yum clean all && rm -rf /var/cache/yum/*
+```
+
+#### 只复制需要的文件
+
+在Dockerfile中，尽量只复制需要的文件，而不是整个项目目录。可用通过指定特定文件或目录来避免无关文件被复制到镜像中
+
+```dockerfile
+COPY config/ /etc/mysql/config/
+COPY index.html /var/loacl/tomcat/webapps/ROOT/
+```
+
+#### 最小化运行时安装
+
+避免在镜像中安装不必要的软件包，特别是开发工具和调试工具。生产环境中，只需要包含运行所需的最少依赖
+
+#### 指定适当的文件权限
+
+确保你复制的文件有正确的权限，以避免运行时出现权限错误。如果文件权限过于宽松，可能引发安全问题
+
+```dockerfile
+COPY --chown=user:group src/ /app/src/
+```
+
+#### 镜像标记和版本管理
+
+使用清晰的标记和版本管理可用帮助区分不同版本的镜像
+
+```shell
+docker build -t myapp:v1 .
+docker build -t myapp:latest .
+```
+
+#### 优化后的Dockerfile
+
+```dockerfile
+# 使用更小的 Alpine 镜像
+FROM openjdk:11-jre-slim AS base
+
+# 设置工作目录
+WORKDIR /opt
+
+# 下载并解压 Tomcat，删除多余文件
+RUN curl -O https://archive.apache.org/dist/tomcat/tomcat-8/v8.5.75/bin/apache-tomcat-8.5.75.tar.gz && \
+    tar -zxf apache-tomcat-8.5.75.tar.gz && \
+    rm -f apache-tomcat-8.5.75.tar.gz && \
+    mv apache-tomcat-8.5.75 tomcat
+
+# 设置环境变量
+ENV CATALINA_HOME=/opt/tomcat
+ENV PATH=$CATALINA_HOME/bin:$PATH
+
+# 开放 Tomcat 默认端口
+EXPOSE 8080
+
+# 启动 Tomcat
+CMD ["catalina.sh", "run"]
+
+```
+
+### 优化总结：
+
+1. **减少镜像层数**：通过合并 `RUN` 指令减少镜像层数。
+2. **清理无用文件**：删除临时文件和缓存，减小镜像大小。
+3. **选择小的基础镜像**：使用 `openjdk:11-jre-slim` 或 `alpine` 镜像代替较大的基础镜像。
+4. **合理的镜像标记和版本管理**：通过标签管理不同版本的镜像。
+5. **文件权限管理**：通过 `COPY --chown` 指定合适的文件权限。
+
+
 
