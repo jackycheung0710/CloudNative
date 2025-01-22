@@ -611,6 +611,17 @@ TIME 运行时间
 CMD 执行的命令
 ```
 
+#### 监控容器实时资源使用率
+
+`docker stats` 命令提供关于容器资源使用的实时信息，如 CPU、内存、网络和磁盘使用情况
+
+```shell
+[root@docker ~]# docker stats
+CONTAINER ID   NAME        CPU %     MEM USAGE / LIMIT    MEM %     NET I/O      BLOCK I/O   PIDS
+e7a317e117c7   webserver   0.00%     3.121MiB / 7.62GiB   0.04%     1.1kB / 0B   22MB / 0B   5
+
+```
+
 #### 查看docker容器镜像本地存储位置
 
 ```shell
